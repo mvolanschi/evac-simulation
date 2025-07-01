@@ -2,6 +2,7 @@
 
 A web-based simulation tool for modeling evacuation scenarios using heterogeneous agent behaviors—including panic, following, repulsion ignoring, and exit avoidance. Built with a Flask backend and a modern Next.js frontend. Outputs animated MP4 videos and detailed statistics.
 
+![10A395C5-8145-4A5C-A130-5FE50F310E23_1_201_a](https://github.com/user-attachments/assets/a5968fc1-aeb1-4155-a8ef-72f99d2dd50c)
 ---
 
 ## 🔧 Features
