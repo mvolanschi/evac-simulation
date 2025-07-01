@@ -227,18 +227,70 @@ class Agent:
             self.pos += velocity * speed
             self.orientation = math.atan2(velocity[1], velocity[0])
 
+def create_default_exits(grid_rows, grid_cols):
+    """Create default exit positions (4 exits at room boundaries)"""
+    return [
+        np.array([0.5, grid_rows/2]),  # Left wall
+        np.array([grid_cols-0.5, grid_rows/2]),  # Right wall
+        np.array([grid_cols/2, 0.5]),  # Bottom wall
+        np.array([grid_cols/2, grid_rows-0.5])  # Top wall
+    ]
+
+def validate_exit_position(x, y, grid_rows, grid_cols):
+    """Validate that an exit position is on the boundary of the room"""
+    boundary_tolerance = 0.6  # Allow some tolerance for boundary positions
+    
+    # Check if position is near any boundary
+    near_left = x <= boundary_tolerance
+    near_right = x >= grid_cols - boundary_tolerance
+    near_bottom = y <= boundary_tolerance
+    near_top = y >= grid_rows - boundary_tolerance
+    
+    # Exit must be near at least one boundary
+    on_boundary = near_left or near_right or near_bottom or near_top
+    
+    # Exit must be within the room bounds
+    within_bounds = 0 <= x <= grid_cols and 0 <= y <= grid_rows
+    
+    return on_boundary and within_bounds
+
 def create_simulation_params(config):
     """Create simulation parameters from config"""
     GRID_ROWS, GRID_COLS = config['grid_rows'], config['grid_cols']
     ROOM_WIDTH = GRID_COLS * 1.0
     ROOM_HEIGHT = GRID_ROWS * 1.0
     
-    exits = [
-        np.array([0.5, GRID_ROWS/2]), 
-        np.array([GRID_COLS-0.5, GRID_ROWS/2]),
-        np.array([GRID_COLS/2, 0.5]), 
-        np.array([GRID_COLS/2, GRID_ROWS-0.5])
-    ]
+    # Handle exit configuration
+    if 'exits' in config and config['exits']:
+        # Use custom exits from config
+        exits = []
+        for exit_config in config['exits']:
+            x, y = exit_config['x'], exit_config['y']
+            # Validate exit position
+            if validate_exit_position(x, y, GRID_ROWS, GRID_COLS):
+                exits.append(np.array([x, y]))
+            else:
+                # If invalid position, snap to nearest boundary
+                if x < GRID_COLS / 2:
+                    x = 0.5  # Snap to left boundary
+                else:
+                    x = GRID_COLS - 0.5  # Snap to right boundary
+                
+                if y < 0.5:
+                    y = 0.5  # Snap to bottom boundary
+                elif y > GRID_ROWS - 0.5:
+                    y = GRID_ROWS - 0.5  # Snap to top boundary
+                else:
+                    y = max(0.5, min(GRID_ROWS - 0.5, y))  # Keep within bounds
+                
+                exits.append(np.array([x, y]))
+        
+        # Ensure at least one exit exists
+        if not exits:
+            exits = create_default_exits(GRID_ROWS, GRID_COLS)
+    else:
+        # Use default 4 exits
+        exits = create_default_exits(GRID_ROWS, GRID_COLS)
     
     # Create obstacles - now configurable
     obstacles = []
@@ -250,6 +302,7 @@ def create_simulation_params(config):
         y = random.uniform(OBSTACLE_MIN_DIST, ROOM_HEIGHT - OBSTACLE_MIN_DIST)
         new_obstacle = np.array([x, y])
         
+        # Ensure obstacles don't block exits (maintain minimum distance)
         if all(np.linalg.norm(new_obstacle - exit_pos) > 3 for exit_pos in exits):
             obstacles.append(new_obstacle)
     
@@ -473,6 +526,7 @@ def run_simulation(config, simulation_id):
                 'no_repulsion': num_no_repulsion,
                 'avoiders': num_avoiders,
                 'obstacles': len(params['obstacles']),
+                'exits': len(params['exits']),  # Include number of exits in stats
                 'survival_rate': sum(1 for a in agents if a.reached) / NUM_AGENTS * 100,
                 'casualty_rate': sum(1 for a in agents if not a.alive) / NUM_AGENTS * 100,
                 'agent_speed': config.get('agent_speed', 0.015)  # Include agent speed in stats
@@ -521,6 +575,25 @@ def simulate():
         if 'agent_speed' in config:
             if not (0.005 <= config['agent_speed'] <= 0.1):
                 return jsonify({'error': 'Agent speed must be between 0.005 and 0.1'}), 400
+        
+        # Validate exits if provided
+        if 'exits' in config:
+            if not isinstance(config['exits'], list):
+                return jsonify({'error': 'Exits must be a list'}), 400
+            
+            if len(config['exits']) > 20:  # Reasonable limit on number of exits
+                return jsonify({'error': 'Maximum 20 exits allowed'}), 400
+            
+            for i, exit_config in enumerate(config['exits']):
+                if not isinstance(exit_config, dict) or 'x' not in exit_config or 'y' not in exit_config:
+                    return jsonify({'error': f'Exit {i+1} must have x and y coordinates'}), 400
+                
+                try:
+                    x, y = float(exit_config['x']), float(exit_config['y'])
+                    if not (0 <= x <= config['grid_cols']) or not (0 <= y <= config['grid_rows']):
+                        return jsonify({'error': f'Exit {i+1} coordinates must be within grid bounds'}), 400
+                except (ValueError, TypeError):
+                    return jsonify({'error': f'Exit {i+1} coordinates must be valid numbers'}), 400
         
         for percentage_field in ['follower_percentage', 'no_repulsion_percentage', 'crowded_exit_avoider_percentage']:
             if not (0 <= config[percentage_field] <= 100):

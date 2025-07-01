@@ -9,6 +9,11 @@ import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, Play, Loader2 } from "lucide-react";
 
+interface Exit {
+  x: number;
+  y: number;
+}
+
 interface SimulationConfig {
   grid_rows: number;
   grid_cols: number;
@@ -19,6 +24,7 @@ interface SimulationConfig {
   crowded_exit_avoider_percentage: number;
   num_obstacles: number;
   agent_speed: number;
+  exits?: Exit[];
 }
 
 interface SimulationStats {
@@ -41,6 +47,7 @@ export default function SimulationPage() {
     crowded_exit_avoider_percentage: 30,
     num_obstacles: 15,
     agent_speed: 0.015,
+    exits: [],
   });
 
   const [simulationId, setSimulationId] = useState<string | null>(null);
@@ -286,6 +293,77 @@ export default function SimulationPage() {
                     />
                   </div>
                 ))}
+              </div>
+              {/* Exit Configuration */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700">
+                  Exits (1 to 4)
+                </Label>
+                {config.exits?.map((exit, index) => (
+                  <div key={index} className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs text-gray-600">
+                        X Position
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={config.grid_cols}
+                        step={0.1}
+                        value={exit.x}
+                        onChange={(e) => {
+                          const exits = [...(config.exits || [])];
+                          exits[index].x = parseFloat(e.target.value) || 0;
+                          setConfig((prev) => ({ ...prev, exits }));
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-600">
+                        Y Position
+                      </Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={config.grid_rows}
+                        step={0.1}
+                        value={exit.y}
+                        onChange={(e) => {
+                          const exits = [...(config.exits || [])];
+                          exits[index].y = parseFloat(e.target.value) || 0;
+                          setConfig((prev) => ({ ...prev, exits }));
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={config.exits && config.exits.length >= 4}
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        exits: [...(prev.exits || []), { x: 0.5, y: 0.5 }],
+                      }))
+                    }
+                  >
+                    + Add Exit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={!config.exits || config.exits.length === 0}
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        exits: prev.exits?.slice(0, -1),
+                      }))
+                    }
+                  >
+                    Remove Last Exit
+                  </Button>
+                </div>
               </div>
 
               {/* Run Button */}
