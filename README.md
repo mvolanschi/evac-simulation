@@ -16,20 +16,6 @@ A web-based simulation tool for modeling evacuation scenarios using heterogeneou
 
 ---
 
-## 🗂 Repository Structure
-
-evac-simulation/
-├── backend/ # Flask API and simulation logic
-│ ├── app.py # Main backend application
-│ ├── requirements.txt # Python dependencies
-│ └── .env # Local environment configuration
-├── frontend/ # Next.js frontend interface
-│ ├── pages/ # React components and UI pages
-│ └── public/ # Static assets (e.g., TU/e logo)
-└── README.md # This file
-
----
-
 ## 🚀 Getting Started
 
 ### 1. Clone the Repository
